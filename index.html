@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=Lobster&family=Poppins:wght@700;800&family=Fredoka:wght@600;700&display=swap">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -744,7 +746,85 @@ const state = {
     },
   ]
 };
-window.state = state; // делаем state доступным для Firebase-модуля ниже
+
+/* ══════════════════════════════════════════
+   FIREBASE (Firestore)
+══════════════════════════════════════════ */
+let fsDocRef, firebaseReady = false;
+
+(function initFirebase(){
+  try {
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJoSXgc9VXSBTTorCfN80vnM2SoqTSnvw",
+      authDomain: "submeowcup.firebaseapp.com",
+      projectId: "submeowcup",
+      storageBucket: "submeowcup.firebasestorage.app",
+      messagingSenderId: "1036313175192",
+      appId: "1:1036313175192:web:91b4519ca564866d425ced"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const dbFs = firebase.firestore();
+    fsDocRef = dbFs.collection('tournament').doc('submeow');
+
+    // Загрузка данных при старте: если документа ещё нет — создаём его
+    // с текущими (начальными) данными, чтобы Firestore стал источником правды.
+    fsDocRef.get().then((snap) => {
+      if (!snap.exists) {
+        return fsDocRef.set({
+          groups: state.groups,
+          matches: state.matches,
+          rosters: state.rosters,
+          history: state.history
+        });
+      }
+    }).then(() => {
+      firebaseReady = true;
+    }).catch((e) => {
+      firebaseReady = true;
+      console.error('Ошибка первичной загрузки Firestore:', e);
+    });
+
+    // Реалтайм-синхронизация: любые изменения в Firestore (из любой вкладки)
+    // мгновенно применяются к state и перерисовывают интерфейс.
+    fsDocRef.onSnapshot((docSnap) => {
+      if (!docSnap.exists) return;
+      const data = docSnap.data();
+      if (data.groups)  state.groups  = data.groups;
+      if (data.matches) state.matches = data.matches;
+      if (data.rosters) state.rosters = data.rosters;
+      if (data.history) state.history = data.history;
+
+      renderGroups();
+      renderBracket();
+      renderRosters();
+      renderHistory();
+      if (typeof isAdminOpen === 'function' && isAdminOpen()) buildAdmin();
+      const rosterPanel = document.getElementById('roster-admin-panel');
+      if (rosterPanel && rosterPanel.classList.contains('open')) buildRosterAdmin();
+    }, (e) => {
+      console.error('Ошибка подписки onSnapshot:', e);
+    });
+  } catch (e) {
+    console.error('Ошибка инициализации Firebase:', e);
+  }
+})();
+
+// Записывает текущий state целиком в Firestore (вызывается кнопками «Сохранить»)
+function saveStateToFirestore(){
+  if (!fsDocRef){
+    console.warn('Firebase ещё не готов — изменения пока сохранены только локально');
+    return;
+  }
+  fsDocRef.set({
+    groups: state.groups,
+    matches: state.matches,
+    rosters: state.rosters,
+    history: state.history
+  }).catch((e) => {
+    console.error('Ошибка сохранения в Firestore:', e);
+  });
+}
 
 /* ══════════════════════════════════════════
    HELPERS
@@ -882,7 +962,7 @@ function applyAdmin(){
     else { m.t2=newName; m.l2=newLogo; m.s2=newScore; }
   }
   renderGroups(); renderBracket(); buildAdmin();
-  if (window.saveState) window.saveState();
+  saveStateToFirestore();
 }
 
 /* ══════════════════════════════════════════
@@ -1126,7 +1206,7 @@ function applyRosterAdmin(){
   });
   renderRosters();
   buildRosterAdmin();
-  if (window.saveState) window.saveState();
+  saveStateToFirestore();
 }
 
 /* ══════════════════════════════════════════
@@ -1162,13 +1242,13 @@ function addHistoryEntry(){
     document.getElementById(`h-map${n}-link`).value = '';
   });
   renderHistory();
-  if (window.saveState) window.saveState();
+  saveStateToFirestore();
 }
 
 function deleteHistoryEntry(id){
   state.history = state.history.filter(e => e.id !== id);
   renderHistory();
-  if (window.saveState) window.saveState();
+  saveStateToFirestore();
 }
 
 function renderHistory(){
@@ -1233,65 +1313,6 @@ renderGroups();
 renderBracket();
 renderRosters();
 renderHistory();
-</script>
-
-<!-- ══════════════════════════════════════════
-     FIREBASE (Firestore) — синхронизация данных
-     Работает только на http(s), не через file://
-══════════════════════════════════════════ -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import {
-    getFirestore, doc, setDoc, onSnapshot
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBJoSXgc9VXSBTTorCfN80vnM2SoqTSnvw",
-    authDomain: "submeowcup.firebaseapp.com",
-    projectId: "submeowcup",
-    storageBucket: "submeowcup.firebasestorage.app",
-    messagingSenderId: "1036313175192",
-    appId: "1:1036313175192:web:91b4519ca564866d425ced"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-
-  // Всё состояние турнира хранится в одном документе:
-  // коллекция "tournament", документ "main"
-  const stateRef = doc(db, "tournament", "main");
-
-  let applyingRemote = false; // флаг, чтобы не зациклить save <-> snapshot
-
-  function rerenderAll() {
-    if (typeof renderGroups === 'function')  renderGroups();
-    if (typeof renderBracket === 'function')  renderBracket();
-    if (typeof renderRosters === 'function')  renderRosters();
-    if (typeof renderHistory === 'function')  renderHistory();
-  }
-
-  // Реалтайм-подписка: как только кто-то (админ) сохраняет изменения,
-  // они прилетают всем открытым вкладкам сайта автоматически.
-  onSnapshot(stateRef, (snap) => {
-    if (!snap.exists()) return; // документа ещё нет — используем данные по умолчанию из HTML
-    applyingRemote = true;
-    const remote = snap.data();
-    Object.assign(window.state, remote);
-    rerenderAll();
-    applyingRemote = false;
-  }, (err) => {
-    console.error('Firebase onSnapshot error:', err);
-  });
-
-  // Вызывается из admin-функций (applyAdmin, applyRosterAdmin, addHistoryEntry, deleteHistoryEntry)
-  window.saveState = async function () {
-    if (applyingRemote) return;
-    try {
-      await setDoc(stateRef, JSON.parse(JSON.stringify(window.state)));
-    } catch (e) {
-      console.error('Firebase save error:', e);
-    }
-  };
 </script>
 </body>
 </html>
