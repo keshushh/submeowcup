@@ -10,6 +10,16 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
+#fb-status{
+  position:fixed; bottom:14px; right:14px; z-index:99999;
+  max-width:360px; padding:10px 14px; border-radius:10px;
+  font:600 12.5px/1.4 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:#e2533f; color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.25);
+  display:none;
+}
+#fb-status.ok{ background:#1fae8e; }
+</style>
+<style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
@@ -482,6 +492,7 @@ body {
 </style>
 </head>
 <body>
+<div id="fb-status"></div>
 <div class="page">
 
   <div class="site-header">
@@ -751,6 +762,25 @@ const state = {
    FIREBASE (Firestore)
 ══════════════════════════════════════════ */
 let fsDocRef, firebaseReady = false;
+let fbStatusTimer = null;
+
+function showFbError(msg){
+  const el = document.getElementById('fb-status');
+  if (!el) return;
+  el.classList.remove('ok');
+  el.textContent = '⚠️ Firebase: ' + msg;
+  el.style.display = 'block';
+  clearTimeout(fbStatusTimer);
+}
+function showFbOk(msg){
+  const el = document.getElementById('fb-status');
+  if (!el) return;
+  el.classList.add('ok');
+  el.textContent = '✅ ' + msg;
+  el.style.display = 'block';
+  clearTimeout(fbStatusTimer);
+  fbStatusTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+}
 
 (function initFirebase(){
   try {
@@ -780,9 +810,11 @@ let fsDocRef, firebaseReady = false;
       }
     }).then(() => {
       firebaseReady = true;
+      showFbOk('Подключено к Firestore');
     }).catch((e) => {
       firebaseReady = true;
       console.error('Ошибка первичной загрузки Firestore:', e);
+      showFbError((e.code || '') + ' ' + (e.message || e));
     });
 
     // Реалтайм-синхронизация: любые изменения в Firestore (из любой вкладки)
@@ -804,9 +836,11 @@ let fsDocRef, firebaseReady = false;
       if (rosterPanel && rosterPanel.classList.contains('open')) buildRosterAdmin();
     }, (e) => {
       console.error('Ошибка подписки onSnapshot:', e);
+      showFbError((e.code || '') + ' ' + (e.message || e));
     });
   } catch (e) {
     console.error('Ошибка инициализации Firebase:', e);
+    showFbError(e.message || e);
   }
 })();
 
@@ -821,8 +855,11 @@ function saveStateToFirestore(){
     matches: state.matches,
     rosters: state.rosters,
     history: state.history
+  }).then(() => {
+    showFbOk('Сохранено');
   }).catch((e) => {
     console.error('Ошибка сохранения в Firestore:', e);
+    showFbError((e.code || '') + ' ' + (e.message || e));
   });
 }
 
