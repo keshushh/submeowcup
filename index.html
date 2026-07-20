@@ -744,6 +744,7 @@ const state = {
     },
   ]
 };
+window.state = state; // делаем state доступным для Firebase-модуля ниже
 
 /* ══════════════════════════════════════════
    HELPERS
@@ -881,6 +882,7 @@ function applyAdmin(){
     else { m.t2=newName; m.l2=newLogo; m.s2=newScore; }
   }
   renderGroups(); renderBracket(); buildAdmin();
+  if (window.saveState) window.saveState();
 }
 
 /* ══════════════════════════════════════════
@@ -1124,6 +1126,7 @@ function applyRosterAdmin(){
   });
   renderRosters();
   buildRosterAdmin();
+  if (window.saveState) window.saveState();
 }
 
 /* ══════════════════════════════════════════
@@ -1159,11 +1162,13 @@ function addHistoryEntry(){
     document.getElementById(`h-map${n}-link`).value = '';
   });
   renderHistory();
+  if (window.saveState) window.saveState();
 }
 
 function deleteHistoryEntry(id){
   state.history = state.history.filter(e => e.id !== id);
   renderHistory();
+  if (window.saveState) window.saveState();
 }
 
 function renderHistory(){
@@ -1228,6 +1233,65 @@ renderGroups();
 renderBracket();
 renderRosters();
 renderHistory();
+</script>
+
+<!-- ══════════════════════════════════════════
+     FIREBASE (Firestore) — синхронизация данных
+     Работает только на http(s), не через file://
+══════════════════════════════════════════ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import {
+    getFirestore, doc, setDoc, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBJoSXgc9VXSBTTorCfN80vnM2SoqTSnvw",
+    authDomain: "submeowcup.firebaseapp.com",
+    projectId: "submeowcup",
+    storageBucket: "submeowcup.firebasestorage.app",
+    messagingSenderId: "1036313175192",
+    appId: "1:1036313175192:web:91b4519ca564866d425ced"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  // Всё состояние турнира хранится в одном документе:
+  // коллекция "tournament", документ "main"
+  const stateRef = doc(db, "tournament", "main");
+
+  let applyingRemote = false; // флаг, чтобы не зациклить save <-> snapshot
+
+  function rerenderAll() {
+    if (typeof renderGroups === 'function')  renderGroups();
+    if (typeof renderBracket === 'function')  renderBracket();
+    if (typeof renderRosters === 'function')  renderRosters();
+    if (typeof renderHistory === 'function')  renderHistory();
+  }
+
+  // Реалтайм-подписка: как только кто-то (админ) сохраняет изменения,
+  // они прилетают всем открытым вкладкам сайта автоматически.
+  onSnapshot(stateRef, (snap) => {
+    if (!snap.exists()) return; // документа ещё нет — используем данные по умолчанию из HTML
+    applyingRemote = true;
+    const remote = snap.data();
+    Object.assign(window.state, remote);
+    rerenderAll();
+    applyingRemote = false;
+  }, (err) => {
+    console.error('Firebase onSnapshot error:', err);
+  });
+
+  // Вызывается из admin-функций (applyAdmin, applyRosterAdmin, addHistoryEntry, deleteHistoryEntry)
+  window.saveState = async function () {
+    if (applyingRemote) return;
+    try {
+      await setDoc(stateRef, JSON.parse(JSON.stringify(window.state)));
+    } catch (e) {
+      console.error('Firebase save error:', e);
+    }
+  };
 </script>
 </body>
 </html>
