@@ -225,6 +225,7 @@ body {
 }
 .group-table th.th-name { text-align: left; }
 .group-table td { font-size: 13px; padding: 11px 14px; text-align: right; border-bottom: 1px solid var(--border); color: var(--txt2); }
+.group-table td.td-logo { padding: 8px 4px; }
 .group-table td.td-name { text-align: left; color: var(--txt); font-weight: 600; }
 .group-table tr:last-child td { border-bottom: none; }
 .group-table tr:hover td { background: rgba(56,198,217,0.08); }
@@ -237,10 +238,11 @@ body {
 .wl-w { color: var(--success); } .wl-sep { color: var(--txt3); } .wl-l { color: var(--danger); }
 .pts-cell { font-weight: 700; color: var(--deep) !important; }
 .logo-circle {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: clamp(32px, 4vw, 44px); height: clamp(32px, 4vw, 44px); border-radius: 50%;
   background: linear-gradient(135deg, var(--sky), var(--palm));
-  border: 1.5px solid var(--border2); display: inline-flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: var(--deep); overflow: hidden; vertical-align: middle; flex-shrink: 0;
+  border: 2px solid var(--border2); display: inline-flex; align-items: center; justify-content: center;
+  font-size: clamp(11px, 1.3vw, 15px); font-weight: 700; color: var(--deep); overflow: hidden; vertical-align: middle; flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(10,165,196,0.15);
 }
 .logo-circle img { width: 100%; height: 100%; object-fit: cover; }
 
@@ -258,16 +260,16 @@ body {
 }
 .bm.blue  .bm-tag { color: var(--deep);  background: rgba(56,198,217,0.18); border-bottom-color: rgba(56,198,217,0.3); }
 .bm.amber .bm-tag { color: #9a6a00;      background: rgba(255,178,56,0.16);  border-bottom-color: rgba(255,178,56,0.3); }
-.bm-row { display: flex; align-items: center; padding: 8px 12px; font-size: 13px; gap: 8px; border-bottom: 1px solid var(--border); }
+.bm-row { display: flex; align-items: center; padding: 9px 12px; font-size: 13px; gap: 10px; border-bottom: 1px solid var(--border); }
 .bm-row:last-child { border-bottom: none; }
 .bm-row.win .bm-name { font-weight: 600; color: var(--txt); }
 .bm-row:not(.win) .bm-name { color: var(--txt2); }
 .bm-logo {
-  width: 26px; height: 26px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%;
   background: linear-gradient(135deg, var(--sky), var(--palm));
-  border: 1.5px solid var(--border2); flex-shrink: 0;
+  border: 2px solid var(--border2); flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 9px; font-weight: 700; color: var(--deep); overflow: hidden;
+  font-size: 11px; font-weight: 700; color: var(--deep); overflow: hidden;
 }
 .bm-logo img { width: 100%; height: 100%; object-fit: cover; }
 .bm-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -322,12 +324,13 @@ body {
 .player-avatar.filled { border-style: solid; border-color: var(--border2); }
 .player-nick {
   font-size: clamp(8px, 2.4vw, 10px); font-weight: 600; color: var(--txt2); text-align: center;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  line-height: 1.2;
+  max-width: 100%; overflow-wrap: break-word; word-break: break-word; white-space: normal;
+  line-height: 1.25; min-width: 0; flex: 1 1 auto;
 }
 .player-nick.empty { color: var(--txt3); font-style: italic; font-weight: 400; }
 .player-slot.is-captain .player-avatar { border-color: var(--sun); box-shadow: 0 0 0 2px rgba(255,178,56,0.25); }
-.player-nick-wrap { display: flex; align-items: center; gap: 3px; justify-content: center; }
+.player-nick-wrap { display: flex; align-items: flex-start; gap: 3px; justify-content: center; min-width: 0; width: 100%; }
+.captain-crown { margin-top: 1px; }
 .captain-crown { font-size: 11px; color: var(--sun); flex-shrink: 0; }
 .roster-admin-captain-toggle {
   display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;
@@ -1015,7 +1018,7 @@ function renderGroups(){
       <div class="group-card">
         <div class="group-header"><i class="ti ti-users-group"></i> Группа ${g}</div>
         <table class="group-table">
-          <colgroup><col style="width:38px"><col style="width:42px"><col><col style="width:72px"><col style="width:46px"></colgroup>
+          <colgroup><col style="width:38px"><col style="width:56px"><col><col style="width:72px"><col style="width:46px"></colgroup>
           <thead><tr><th style="text-align:left">#</th><th></th><th class="th-name">Команда</th><th>В – П</th><th>О</th></tr></thead>
           <tbody>${order.map((idx,rank)=>{
             const t = teams[idx];
@@ -1024,7 +1027,7 @@ function renderGroups(){
             const clkAttr = adminOn ? `onclick="selectAdminTeam('group','${g}',${idx})"` : '';
             return `<tr>
               <td style="text-align:left"><span class="rank-badge ${rankCls[rank]}">${rank+1}</span></td>
-              <td style="text-align:center" class="${clkCls}" ${clkAttr}>${logoCircle(t.logo,t.name,'logo-circle')}</td>
+              <td style="text-align:center" class="td-logo ${clkCls}" ${clkAttr}>${logoCircle(t.logo,t.name,'logo-circle')}</td>
               <td class="td-name ${clkCls}" ${clkAttr}>${t.name}</td>
               <td><span class="wl-record"><span class="wl-w">${t.w}</span><span class="wl-sep"> – </span><span class="wl-l">${t.l}</span></span></td>
               <td class="pts-cell">${t.pts}</td>
@@ -1038,7 +1041,7 @@ function renderGroups(){
 /* ══════════════════════════════════════════
    BRACKET RENDER
 ══════════════════════════════════════════ */
-const CW=200, CH=104;
+const CW=200, CH=122;
 const POS = {
   top1:[280,20],    top2:[280,170],   topf:[800,95],
   botA1:[10,420],  botA2:[280,420],
@@ -1050,8 +1053,8 @@ const POS = {
 function cx(id){ return POS[id][0]+CW; }
 function lx(id){ return POS[id][0]; }
 function mcy(id){ return POS[id][1]+CH/2; }
-function mRow1Y(id){ return POS[id][1]+35; }
-function mRow2Y(id){ return POS[id][1]+71; }
+function mRow1Y(id){ return POS[id][1]+49; }
+function mRow2Y(id){ return POS[id][1]+98; }
 function wireH(x1,x2,y){ return `<div class="wire h" style="left:${Math.min(x1,x2)}px;top:${y}px;width:${Math.abs(x2-x1)}px;"></div>`; }
 function wireV(x,y1,y2){ return `<div class="wire v" style="left:${x}px;top:${Math.min(y1,y2)}px;height:${Math.abs(y2-y1)}px;"></div>`; }
 function connectTwo(a,b,out){
@@ -1130,7 +1133,7 @@ function renderRosters(){
         ? `<div class="player-avatar filled"><img src="${p.avatar}" alt="${p.nick}"></div>`
         : `<div class="player-avatar">${p.nick ? ini(p.nick) : '?'}</div>`;
       const crown = p.captain ? `<svg class="captain-crown" viewBox="0 0 24 24" width="13" height="13" fill="currentColor" title="Капитан"><path d="M2.5 18.5h19l1-9-5 3-5-6-5 6-5-3 1 9zM3 20.5h18a1 1 0 010 2H3a1 1 0 010-2z"/></svg>` : '';
-      const nickHtml = `<div class="player-nick-wrap"><div class="player-nick${p.nick?'':' empty'}">${p.nick||'—'}</div>${crown}</div>`;
+      const nickHtml = `<div class="player-nick-wrap"><div class="player-nick${p.nick?'':' empty'}" title="${p.nick||''}">${p.nick||'—'}</div>${crown}</div>`;
       return `<div class="player-slot${p.captain?' is-captain':''}">${avHtml}${nickHtml}</div>`;
     }).join('');
     return `<div class="roster-card">
