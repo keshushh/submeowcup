@@ -385,6 +385,15 @@ body {
 }
 .roster-admin-player input:focus { border-color: var(--ocean); }
 .player-num { font-size: 10px; color: var(--txt3); min-width: 14px; text-align: center; }
+.upload-btn {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+  border: 1.5px dashed var(--border2); background: rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  color: var(--ocean); transition: all .15s ease;
+}
+.upload-btn:hover { border-color: var(--ocean); background: rgba(56,198,217,0.12); }
+.upload-btn input[type="file"] { display: none; }
+.upload-btn svg, .upload-btn i { pointer-events: none; }
 
 /* HISTORY TAB */
 .history-admin-bar { display: flex; justify-content: flex-end; margin-bottom: 1.25rem; }
@@ -941,8 +950,14 @@ function buildAdmin(){
           <div class="edit-logo-row">
             ${logoCircle(data.logo, data.name, 'edit-logo-preview')}
             <div class="admin-field">
-              <label>Ссылка на аватарку (URL)</label>
-              <input type="text" id="edit-team-logo" value="${data.logo||''}" placeholder="https://site.com/logo.png" oninput="previewLogo(this.value)">
+              <label>Ссылка на аватарку (URL) или загрузите фото</label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="text" id="edit-team-logo" value="${data.logo||''}" placeholder="https://site.com/logo.png" oninput="previewLogo(this.value)" style="flex:1;min-width:0;">
+                <label class="upload-btn" title="Загрузить фото (PNG/JPG)">
+                  <i class="ti ti-photo-plus"></i>
+                  <input type="file" accept="image/*" onchange="uploadEditTeamLogo(this)">
+                </label>
+              </div>
             </div>
           </div>
           <div class="admin-grid">
@@ -970,6 +985,15 @@ function buildAdmin(){
       </div>`;
   }
   document.getElementById('admin-content').innerHTML = h;
+}
+
+function uploadEditTeamLogo(inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  readImageAsDataURL(file, 240, function(dataUrl){
+    const textInput = document.getElementById('edit-team-logo');
+    if (textInput) textInput.value = dataUrl;
+    previewLogo(dataUrl);
+  });
 }
 
 function previewLogo(url){
@@ -1178,6 +1202,10 @@ function buildRosterAdmin(){
           oninput="previewPlayerNick(${ti},${pi},this.value)">
         <input type="text" id="r-av-${ti}-${pi}" value="${p.avatar}" placeholder="URL аватарки" class="av-input"
           oninput="previewPlayerAv(${ti},${pi},this.value)" style="font-size:11px;">
+        <label class="upload-btn" title="Загрузить фото (PNG/JPG)" style="width:26px;height:26px;">
+          <i class="ti ti-photo-plus" style="font-size:13px;"></i>
+          <input type="file" accept="image/*" onchange="uploadPlayerAvatar(${ti},${pi}, this)">
+        </label>
         <button type="button" id="r-cap-${ti}-${pi}" class="roster-admin-captain-toggle${p.captain?' active':''}"
           title="Сделать капитаном" onclick="toggleCaptain(${ti},${pi})">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M2.5 18.5h19l1-9-5 3-5-6-5 6-5-3 1 9zM3 20.5h18a1 1 0 010 2H3a1 1 0 010-2z"/></svg>
@@ -1192,14 +1220,64 @@ function buildRosterAdmin(){
           <input type="text" id="r-name-${ti}" value="${team.name}" placeholder="Название команды"
             oninput="previewTeamName(${ti},this.value)"
             style="width:100%;font-family:var(--font);font-size:13px;padding:5px 9px;border:1px solid var(--border2);border-radius:8px;background:rgba(255,255,255,0.85);color:var(--txt);outline:none;">
-          <input type="text" id="r-logo-${ti}" value="${team.logo}" placeholder="URL логотипа команды"
-            oninput="previewTeamLogo(${ti},this.value)"
-            style="width:100%;font-family:var(--font);font-size:11px;padding:5px 9px;border:1px solid var(--border2);border-radius:8px;background:rgba(255,255,255,0.85);color:var(--txt);outline:none;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="text" id="r-logo-${ti}" value="${team.logo}" placeholder="URL логотипа или загрузите фото →"
+              oninput="previewTeamLogo(${ti},this.value)"
+              style="flex:1;min-width:0;font-family:var(--font);font-size:11px;padding:5px 9px;border:1px solid var(--border2);border-radius:8px;background:rgba(255,255,255,0.85);color:var(--txt);outline:none;">
+            <label class="upload-btn" title="Загрузить фото (PNG/JPG)">
+              <i class="ti ti-photo-plus"></i>
+              <input type="file" accept="image/*" onchange="uploadTeamLogo(${ti}, this)">
+            </label>
+          </div>
         </div>
       </div>
       <div class="roster-admin-players">${players}</div>
     </div>`;
   }).join('');
+}
+
+/* Читает выбранный файл, уменьшает его и превращает в data:image/png;base64,... */
+function readImageAsDataURL(file, maxDim, cb){
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert('Пожалуйста, выберите файл изображения (PNG/JPG)'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      let w = img.width, h = img.height;
+      if (w > maxDim || h > maxDim) {
+        if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+        else { w = Math.round(w * maxDim / h); h = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/png'));
+    };
+    img.onerror = function(){ alert('Не удалось прочитать изображение'); };
+    img.src = e.target.result;
+  };
+  reader.onerror = function(){ alert('Не удалось прочитать файл'); };
+  reader.readAsDataURL(file);
+}
+
+function uploadTeamLogo(ti, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  readImageAsDataURL(file, 240, function(dataUrl){
+    const textInput = document.getElementById(`r-logo-${ti}`);
+    if (textInput) textInput.value = dataUrl;
+    previewTeamLogo(ti, dataUrl);
+  });
+}
+
+function uploadPlayerAvatar(ti, pi, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  readImageAsDataURL(file, 160, function(dataUrl){
+    const textInput = document.getElementById(`r-av-${ti}-${pi}`);
+    if (textInput) textInput.value = dataUrl;
+    previewPlayerAv(ti, pi, dataUrl);
+  });
 }
 
 function previewTeamName(ti, val){
